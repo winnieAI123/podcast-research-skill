@@ -1,0 +1,6 @@
+interface:
+  display_name: "Podcast Research"
+  short_description: "Search, transcribe, and compare podcast viewpoints"
+  default_prompt: "Use $podcast-research to compare recent podcast viewpoints on a topic."
+policy:
+  allow_implicit_invocation: true
