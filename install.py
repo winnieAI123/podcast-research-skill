@@ -42,6 +42,31 @@ def install_dependencies():
     )
 
 
+def hardware_is_ready():
+    sys.path.insert(0, str(SOURCE_DIR / "scripts"))
+    from check_setup import MIN_RAM_GB, RECOMMENDED_RAM_GB, total_memory_bytes
+
+    memory_bytes = total_memory_bytes()
+    if memory_bytes is None:
+        print(f"WARNING: Could not detect system memory. Verify at least {MIN_RAM_GB} GB RAM manually.")
+        return True
+
+    memory_gb = memory_bytes / (1024 ** 3)
+    if memory_gb < MIN_RAM_GB:
+        print(
+            f"ERROR: This computer has {memory_gb:.1f} GB RAM; "
+            f"podcast-research requires at least {MIN_RAM_GB} GB.",
+            file=sys.stderr,
+        )
+        print("Installation stopped before downloading dependencies.", file=sys.stderr)
+        return False
+    if memory_gb < RECOMMENDED_RAM_GB:
+        print(f"Memory: {memory_gb:.1f} GB. Installation can continue; use model=small. {RECOMMENDED_RAM_GB} GB is recommended.")
+    else:
+        print(f"Memory: {memory_gb:.1f} GB. Recommended configuration met.")
+    return True
+
+
 def copy_skill(destination):
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(SOURCE_DIR, destination, dirs_exist_ok=True)
@@ -80,6 +105,9 @@ def main():
 
     print(f"Platform: {platform.system()} {platform.machine()}")
     print("Disk guidance: keep at least 5 GB free; 8 GB is recommended for models and audio.")
+
+    if not hardware_is_ready():
+        return 1
 
     if not args.skip_deps:
         install_dependencies()

@@ -8,12 +8,13 @@ An Agent skill that searches recent podcast episodes, downloads audio from RSS, 
 
 - Python 3.10 or newer
 - Git command-line client
+- At least **8 GB system memory (RAM)**; **16 GB recommended**
 - At least **5 GB free disk space**; **8 GB recommended**
 - Internet access for podcast search, audio, Python packages, and the first Whisper model download
 - Apple Silicon macOS uses `mlx-whisper`; Windows, Linux, and Intel macOS use `faster-whisper`
 - FFmpeg is optional but required for the YouTube fallback and splitting large files for the optional OpenAI API backend
 
-The first transcription downloads a model of roughly 0.5–1.6 GB. Audio files and transcripts need additional space. CPU transcription on Windows can be substantially slower than Apple Silicon.
+Machines with less than 8 GB RAM fail the setup check because local transcription may be unstable. Machines with 8–16 GB RAM can run the Skill, but should prefer the `small` model and avoid concurrent heavy applications. The first transcription downloads a model of roughly 0.5–1.6 GB. Audio files and transcripts need additional space. CPU transcription on Windows can be substantially slower than Apple Silicon.
 
 ## One-command installer
 

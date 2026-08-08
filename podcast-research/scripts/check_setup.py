@@ -7,11 +7,14 @@ import importlib.util
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 
 MIN_FREE_GB = 5
+MIN_RAM_GB = 8
+RECOMMENDED_RAM_GB = 16
 
 
 def module_exists(name):
@@ -37,6 +40,44 @@ def local_backend():
     return None
 
 
+def total_memory_bytes():
+    system = platform.system()
+    try:
+        if system == "Windows":
+            import ctypes
+
+            class MemoryStatus(ctypes.Structure):
+                _fields_ = [
+                    ("length", ctypes.c_ulong),
+                    ("memory_load", ctypes.c_ulong),
+                    ("total_physical", ctypes.c_ulonglong),
+                    ("available_physical", ctypes.c_ulonglong),
+                    ("total_page_file", ctypes.c_ulonglong),
+                    ("available_page_file", ctypes.c_ulonglong),
+                    ("total_virtual", ctypes.c_ulonglong),
+                    ("available_virtual", ctypes.c_ulonglong),
+                    ("available_extended_virtual", ctypes.c_ulonglong),
+                ]
+
+            status = MemoryStatus()
+            status.length = ctypes.sizeof(MemoryStatus)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                return status.total_physical
+            return None
+        if system == "Darwin":
+            value = subprocess.check_output(
+                ["sysctl", "-n", "hw.memsize"],
+                text=True,
+                timeout=10,
+            )
+            return int(value.strip())
+        pages = os.sysconf("SC_PHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        return pages * page_size
+    except (AttributeError, OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def add(results, name, status, detail, required=True):
     results.append((name, status, detail, required))
 
@@ -45,6 +86,18 @@ def run_checks(skill_dir):
     results = []
     version_ok = sys.version_info >= (3, 10)
     add(results, "Python", "PASS" if version_ok else "FAIL", platform.python_version())
+
+    memory_bytes = total_memory_bytes()
+    if memory_bytes is None:
+        add(results, "System memory", "WARN", "could not detect RAM; verify 8 GB minimum manually", required=False)
+    else:
+        memory_gb = memory_bytes / (1024 ** 3)
+        if memory_gb < MIN_RAM_GB:
+            add(results, "System memory", "FAIL", f"{memory_gb:.1f} GB; {MIN_RAM_GB} GB required")
+        elif memory_gb < RECOMMENDED_RAM_GB:
+            add(results, "System memory", "PASS", f"{memory_gb:.1f} GB; use model=small, {RECOMMENDED_RAM_GB} GB recommended")
+        else:
+            add(results, "System memory", "PASS", f"{memory_gb:.1f} GB; recommended configuration met")
 
     try:
         free_gb = shutil.disk_usage(skill_dir).free / (1024 ** 3)
