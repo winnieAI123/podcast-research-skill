@@ -16,15 +16,35 @@ An Agent skill that searches recent podcast episodes, downloads audio from RSS, 
 
 Machines with less than 8 GB RAM fail the setup check because local transcription may be unstable. Machines with 8–16 GB RAM can run the Skill, but should prefer the `small` model and avoid concurrent heavy applications. The first transcription downloads a model of roughly 0.5–1.6 GB. Audio files and transcripts need additional space. CPU transcription on Windows can be substantially slower than Apple Silicon.
 
-## One-command installer
+## Agent-safe installation
+
+An Agent must assess the machine first, report the result, and ask the user for explicit confirmation before installing dependencies or copying the Skill.
+
+### 1. Clone and assess without making changes
 
 ```bash
 git clone https://github.com/winnieAI123/podcast-research-skill.git
 cd podcast-research-skill
-python3 install.py
+python3 install.py --check-only
 ```
 
-On Windows, run `py -3 install.py`. Use the same Python launcher for later checks and Skill commands. The installer detects Claude Code and Codex directories. Override detection with:
+Windows Codex assessment:
+
+```powershell
+git clone https://github.com/winnieAI123/podcast-research-skill.git
+Set-Location .\podcast-research-skill
+py -3 install.py --check-only --agent codex
+```
+
+The assessment does not install packages or copy files. It reports the platform, Python interpreter, Git availability, RAM, free disk space, selected Agent destination, transcription backend, and expected model download size.
+
+### 2. Report and confirm
+
+The Agent must show the assessment to the user, explain that installation will install Python packages and copy the Skill into the selected Agent directory, then request explicit confirmation.
+
+### 3. Install after confirmation
+
+Use the same Python launcher used for assessment:
 
 ```bash
 python3 install.py --agent claude
@@ -32,7 +52,9 @@ python3 install.py --agent codex
 python3 install.py --agent both
 ```
 
-The installation succeeds only when the required Python packages, local transcription backend, Skill files, and minimum free disk space pass the built-in check.
+Windows Codex installation: `py -3 install.py --agent codex`.
+
+The installation succeeds only when the required Python packages, local transcription backend, Skill files, minimum RAM, and minimum free disk space pass the built-in check. Agents must also follow [`AGENTS.md`](AGENTS.md).
 
 ## Verify or diagnose
 

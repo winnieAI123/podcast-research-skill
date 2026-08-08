@@ -58,13 +58,40 @@ def hardware_is_ready():
             f"podcast-research requires at least {MIN_RAM_GB} GB.",
             file=sys.stderr,
         )
-        print("Installation stopped before downloading dependencies.", file=sys.stderr)
+        print("Requirements are not met; no dependencies were downloaded.", file=sys.stderr)
         return False
     if memory_gb < RECOMMENDED_RAM_GB:
         print(f"Memory: {memory_gb:.1f} GB. Installation can continue; use model=small. {RECOMMENDED_RAM_GB} GB is recommended.")
     else:
         print(f"Memory: {memory_gb:.1f} GB. Recommended configuration met.")
     return True
+
+
+def disk_is_ready():
+    free_gb = shutil.disk_usage(REPO_DIR).free / (1024 ** 3)
+    if free_gb < 5:
+        print(f"ERROR: Only {free_gb:.1f} GB disk space is free; at least 5 GB is required.", file=sys.stderr)
+        return False
+    if free_gb < 8:
+        print(f"Disk: {free_gb:.1f} GB free. Installation can continue; 8 GB is recommended.")
+    else:
+        print(f"Disk: {free_gb:.1f} GB free. Recommended configuration met.")
+    return True
+
+
+def print_assessment(agent):
+    print(f"Platform: {platform.system()} {platform.machine()}")
+    print(f"Python: {platform.python_version()} at {sys.executable}")
+    print(f"Git: {shutil.which('git') or 'not found; required to clone or update the repository'}")
+    print("Local transcription backend after installation: " + (
+        "mlx-whisper" if platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}
+        else "faster-whisper"
+    ))
+    print("Expected first model download: approximately 0.5–1.6 GB")
+    print("Agent target(s): " + ", ".join(str(path) for path in destinations(agent)))
+    hardware_ready = hardware_is_ready()
+    disk_ready = disk_is_ready()
+    return hardware_ready and disk_ready
 
 
 def copy_skill(destination):
@@ -96,6 +123,7 @@ def main():
         help="Agent target. Default: detect installed Claude Code/Codex directories.",
     )
     parser.add_argument("--skip-deps", action="store_true", help="Copy the skill without installing Python packages")
+    parser.add_argument("--check-only", action="store_true", help="Assess requirements without installing packages or copying files")
     args = parser.parse_args()
 
     if sys.version_info < (3, 10):
@@ -103,10 +131,16 @@ def main():
     if not SOURCE_DIR.is_dir():
         parser.error(f"Skill source not found: {SOURCE_DIR}")
 
-    print(f"Platform: {platform.system()} {platform.machine()}")
-    print("Disk guidance: keep at least 5 GB free; 8 GB is recommended for models and audio.")
+    ready = print_assessment(args.agent)
+    if args.check_only:
+        if ready:
+            print("\nASSESSMENT: READY FOR INSTALLATION. No changes were made.")
+            print("Ask the user for explicit confirmation before running install.py without --check-only.")
+            return 0
+        print("\nASSESSMENT: NOT READY FOR INSTALLATION. No changes were made.", file=sys.stderr)
+        return 1
 
-    if not hardware_is_ready():
+    if not ready:
         return 1
 
     if not args.skip_deps:
